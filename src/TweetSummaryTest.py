@@ -9,6 +9,8 @@ from TweetSummary import *
 def summary(line,fileName):
 	#fileName='sampletweets.txt'
 	r=line.split(',')
+	if len(r) < 10:
+		return
 	t=tfidf()
 	#listOfSummary={}
 	#print fileName
