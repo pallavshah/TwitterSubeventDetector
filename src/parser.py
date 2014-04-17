@@ -3,6 +3,7 @@
 import sys
 from gensim import corpora, models, similarities
 import re
+from TweetSummaryTest import *
 from re import compile
 from lshash import LSHash
 from subprocess import call
@@ -66,34 +67,18 @@ def create_corpus(inputfile):
 	print "Corpus created successfully and stored in "+outputfile
 
 
-#def getDenseVector(vector, length):
-#	denseVector = [0]*length
-#	for i in vector:
-#		denseVector[i[0]] = 1
-#	return denseVector
-
 def getDenseVector(vector, length):
-	denseVector = [-1]*length
-	for i in range(len(vector)):
-		denseVector[i] = vector[i][0]
+	denseVector = [0]*length
+	for i in vector:
+		denseVector[i[0]] = 1
 	return denseVector
-
-
-#def getSparseVector(vector):
-#	sparseVector = []
-#	for i in range(len(vector)):
-#		if (vector[i] != 0):
-#			sparseVector.append(tuple([i,1.0]))
-#	return tuple(sparseVector)
 
 def getSparseVector(vector):
 	sparseVector = []
 	for i in range(len(vector)):
-		if (vector[i] == -1):
-			break
-		sparseVector.append(tuple([vector[i],1.0]))
+		if (vector[i] != 0):
+			sparseVector.append(tuple([i,1.0]))
 	return tuple(sparseVector)
-
 
 def detect_subevent(filename):
 	dictionaryFile = filename + ".dict"
@@ -104,69 +89,38 @@ def detect_subevent(filename):
 	outputdict={}
 	corpus = corpora.MmCorpus(corpusFile)
 	dictionary = corpora.Dictionary.load(dictionaryFile)
-	
+	lsh = LSHash(30, dictionary.__len__())
 	index = 0
 	count = 0
-	word_length = 0
-	threshold = 10
-
-	for i in (corpus):
-		if(len(i) > word_length):
-			word_length = len(i)
-
-	lsh = LSHash(30, word_length)
-
-	print word_length
 	for index in range(len(corpus)):
 		#print str(index)+",",
 		#print corpus[index]
-		denseVector = getDenseVector(corpus[index], word_length)
+		denseVector = getDenseVector(corpus[index], lsh.input_dim)
 		#print getSparseVector(denseVector)
-		#print denseVector
-		result = lsh.query(denseVector, num_results = 50, distance_func = "euclidean")
+		result = lsh.query(denseVector, num_results = 5, distance_func = "cosine")
 		#print result
 		#no similar tweets
 		count += 1
-		#print len(result)
 		if(result == []):
-			outputdict[index]=[index]
-			#tempDict[getSparseVector(denseVector)] = index
-			#print denseVector
+			outputdict[index]=[]
+			tempDict[getSparseVector(denseVector)] = index
 			lsh.index(denseVector)
 			#continue
+		
 		else:
-#			for r in result:
-#				if(outputdict.has_key(tempDict[getSparseVector(r[0])])):
-#					outputdict[tempDict[getSparseVector(r[0])]].append(index)
-#					lsh.index(denseVector)
-#					break
-			done = False
-			for k in outputdict.iterkeys():
-				if done:
+			for r in result:
+				if(outputdict.has_key(tempDict[getSparseVector(r[0])])):
+					outputdict[tempDict[getSparseVector(r[0])]].append(index)
 					break
-				turn = 0
-				for val in outputdict[k]:
-					turn += 1
-					if turn > threshold:
-						break
-					if getSparseVector(getDenseVector(corpus[val],word_length)) == getSparseVector(result[0][0]):
-						outputdict[k].append(index)
-						if(len(outputdict) < threshold):
-							lsh.index(denseVector)
-						done = True
-						break
-		if count % 100 == 0:
-			print count
+		#print count,
 		
 		
 	#print outputdict
 	with open(outputFile, 'w') as out:
 		for key in outputdict.iterkeys():
-			line = ""
-			for i in range(len(outputdict[key])):
-				line += str(outputdict[key][i])
-				if i != len(outputdict[key])-1:
-					line += ", "
+			line = str(key) 
+			for i in outputdict[key]:
+				line += ", " + str(i)
 			out.write(line+"\n")
 	
 	print "Please check the output file:", outputFile
@@ -202,6 +156,7 @@ elif(sys.argv[1] == "-A" or sys.argv[1] == "--all"):
 	create_dictionary(filename)
 	create_corpus(filename)
 	detect_subevent(filename)
+	callSummary(filename,filename + ".out")
 else:
 	print "Fatal Error! Invalid Arguments!"
 
